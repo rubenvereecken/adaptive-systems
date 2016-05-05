@@ -16,7 +16,7 @@ class CLI {
     const url = args.args[1];
     if (!args.exclude)
       args.exclude = []
-    else if (args.exclude.match(/,/))
+    else
       args.exclude = args.exclude.split(',')
     var options = {
       overwrite: args.overwrite || false,
