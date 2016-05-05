@@ -33,6 +33,7 @@ export default class Crawler {
     return {
       depth: Infinity,
       consolidateProtocol: true,
+      attempts: 3,
     };
   }
 
@@ -87,7 +88,7 @@ export default class Crawler {
     return !url.match(/(\.(ppt)|(pptx)|(pdf))$/);
   }
 
-  crawl(url, depth=this.opt.depth) {
+  crawl(url, depth=this.opt.depth, attempts=this.opt.attempts) {
     var that = this;
     var origin = url;
     const normalizedOrigin = this.normalizeURL(origin);
@@ -144,17 +145,16 @@ export default class Crawler {
 
       return Promise.all(_.concat(crawlPromises, savePagePromise));
     }).catch((err) => {
-      if (err.statusCode) {
-        var page = {
-          url: normalizedOrigin,
-          error: err,
-        }
+      var page = {
+        url: normalizedOrigin,
+        error: err,
+      };
+      if (err.statusCode || attempts <= 1) {
         return Page.findOne({url: normalizedOrigin}).remove()
           .then(Page(page).save);
       } else {
-        throw err;
+        return that.crawl(normalizedOrigin, depth, attempts-1);
       }
-      console.log(err.statusCode);
     });
   }
 }
