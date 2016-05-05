@@ -10,7 +10,6 @@ export default class Crawler {
   constructor(options) {
     this.opt = options;
     _.defaults(this.opt, Crawler.defaults);
-    console.log(options);
 
     this.visited = {};
     this.isFullURLRegex = /^http/;
@@ -21,12 +20,17 @@ export default class Crawler {
     this.trailingIdRegex = /\#[A-Za-z0-9_:\.-]+$/;
     this.trailingSlashRegex = /\/$/;
     this.urlRegex = /^https?:\/\/[a-zA-Z0-9_-]+(\.[a-zA-Z0-9_-]+)+/;
+    this.fileRegex = /(\.(ppt)|(pptx)|(pdf))$/;
+
+    this.opt.excludes.push(this.fileRegex);
+    console.log(this.opt);
 
     if (!this.opt.overwrite)
       this.ready = this.prepareVisited();
     else {
       this.ready = new Promise((resolve) => { resolve() });
     }
+
   }
 
   static get defaults() {
@@ -85,7 +89,13 @@ export default class Crawler {
   }
 
   shouldCrawl(url) {
-    return !url.match(/(\.(ppt)|(pptx)|(pdf))$/);
+    return !_.some(this.opt.excludes.map((re) => url.match(re)));
+  }
+
+  replacePage(page) {
+      return Page.findOne({url: page.url}).remove()
+                 .then(Page(page).save())
+
   }
 
   crawl(url, depth=this.opt.depth, attempts=this.opt.attempts) {
@@ -106,8 +116,7 @@ export default class Crawler {
 
     if (!this.shouldCrawl(normalizedOrigin)) {
       page.links = [];
-      return Page.findOne({url: page.url}).remove()
-                 .then(Page(page).save())
+      return this.replacePage(page);
     }
 
     return request({ 
@@ -126,15 +135,9 @@ export default class Crawler {
         goodLinks.push(normalizedURL);
       });
 
-      var page = {
-        url: normalizedOrigin,
-        links: goodLinks,
-      };
+      page.links = goodLinks;
 
-      var savePagePromise = Page.findOne({url: normalizedOrigin}).remove()
-        .then(Page(page).save)
-        // .then(() => { console.log(`${page.url} saved successfully`) });
-
+      var savePagePromise = this.replacePage(page);
       var crawlPromises = [];
 
       if (depth > 0) {
@@ -145,13 +148,9 @@ export default class Crawler {
 
       return Promise.all(_.concat(crawlPromises, savePagePromise));
     }).catch((err) => {
-      var page = {
-        url: normalizedOrigin,
-        error: err,
-      };
+      page.error = err;
       if (err.statusCode || attempts <= 1) {
-        return Page.findOne({url: normalizedOrigin}).remove()
-          .then(Page(page).save);
+        return that.replacePage(page);
       } else {
         return that.crawl(normalizedOrigin, depth, attempts-1);
       }

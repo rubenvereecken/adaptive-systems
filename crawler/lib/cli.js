@@ -14,9 +14,14 @@ class CLI {
     }
 
     const url = args.args[1];
+    if (!args.exclude)
+      args.exclude = []
+    else (args.exclude.match(/,/))
+      args.exclude = args.exclude.split(',')
     var options = {
       overwrite: args.overwrite || false,
       depth: args.depth,
+      excludes: args.exclude.map((re) => new RegExp(re)),
     }
     if (url) {
       // if url valid
@@ -46,7 +51,7 @@ class CLI {
     .version(pkg.version)
     .description(pkg.description)
     .arguments('<action> [url]')
-    .option('--exclude [regexes...]')
+    .option('--exclude <regexes>')
     .option('-o, --overwrite', 'Overwrite found pages')
     .option('-d, --depth <d>', 'Configure crawl depth')
     .parse(process.argv);
