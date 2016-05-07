@@ -28,7 +28,7 @@ class CLI {
       //
       const crawler = new Crawler(options);
       const crawlerPromise = crawler.ready
-        .then(() => crawler.crawl(url))
+        .then(() => crawler.startCrawl(url))
         .then((whatever) => { process.exit(0) })
         .catch((err) => {
           console.error(err.stack)

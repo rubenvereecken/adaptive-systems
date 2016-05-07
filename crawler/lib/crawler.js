@@ -4,6 +4,7 @@ import request from 'request-promise';
 import cheerio from 'cheerio';
 import _ from 'lodash';
 import Promise from 'bluebird';
+import urll from 'url';
 
 
 export default class Crawler {
@@ -20,7 +21,7 @@ export default class Crawler {
     this.trailingIdRegex = /\#[A-Za-z0-9_:\.-]+$/;
     this.trailingSlashRegex = /\/$/;
     this.urlRegex = /^https?:\/\/[a-zA-Z0-9_-]+(\.[a-zA-Z0-9_-]+)+/;
-    this.fileRegex = /(\.(ppt)|(pptx)|(pdf))$/;
+    this.fileRegex = /(\.(ppt)|(pptx)|(pdf)|(.jpg))$/;
 
     this.opt.excludes.push(this.fileRegex);
     console.log(this.opt);
@@ -98,10 +99,14 @@ export default class Crawler {
 
   }
 
-  crawl(url, depth=this.opt.depth, attempts=this.opt.attempts) {
-    var that = this;
-    var origin = url;
-    const normalizedOrigin = this.normalizeURL(origin);
+  startCrawl(url) {
+    var url = urll.parse(url, true);
+    return this.crawl(url);
+  }
+
+  crawl(origin, depth=this.opt.depth, attempts=this.opt.attempts) {
+    const that = this;
+    const normalizedOrigin = urll.format(origin);
 
     if (this.visited[normalizedOrigin]) {
       return;
@@ -130,12 +135,12 @@ export default class Crawler {
         var url = $(link).attr('href');
         if (!this.isURL(url)) return;
 
-        const normalizedURL = this.normalizeURL(url, origin);
-        if (!this.sameOrigin(normalizedURL, normalizedOrigin)) return;
-        goodLinks.push(normalizedURL);
+        const resolvedURL = urll.resolve(origin.href, url);
+        if (!this.sameOrigin(resolvedURL, normalizedOrigin)) return;
+        goodLinks.push(urll.parse(resolvedURL));
       });
 
-      page.links = goodLinks;
+      page.links = goodLinks.map((url) => urll.format(url));
 
       var savePagePromise = this.replacePage(page);
       var crawlPromises = [];
